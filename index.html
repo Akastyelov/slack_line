@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<div style="position: fixed">
+    <input id="slider1" type="range" min="1" max="3" value="3" step="1">
+</div>
+
+<svg width="1800" height="800">
+    <circle id="outer" cx="960" cy="400" r="300" stroke="black" stroke-width="4" fill="white" style="cursor: none"/>
+    <circle id="inner" cx="960" cy="400" r="4" stroke="red" stroke-width="1" fill="red" style="cursor: none"/>
+    <circle id="centre" cx="960" cy="400" r="4" stroke="red" stroke-width="1" fill="red" style="cursor: none"/>
+    <polyline id="connection" style="fill:none;stroke:red;stroke-width:4;cursor: none"/>
+</svg>
+
+</body>
+<script type="module">
+    const outerCircle = document.getElementById("outer");
+    const innerCircle = document.getElementById("inner");
+    const line = document.getElementById("connection");
+    const divisionStepsInput = document.getElementById("slider1");
+
+    divisionStepsInput.addEventListener("input", () => requestAnimationFrame(display));
+
+    let mouseX = 0;
+    let mouseY = 0;
+
+    outerCircle.addEventListener("mousemove", (event) => {
+      mouseX = event.x;
+      mouseY = event.y;
+
+      requestAnimationFrame(display)
+    });
+
+    function display() {
+      innerCircle.style.cx = mouseX;
+      innerCircle.style.cy = mouseY;
+
+      const start = [outerCircle.cx.baseVal.value, outerCircle.cy.baseVal.value];
+      const end = [mouseX, mouseY];
+      const maxDistance = outerCircle.r.baseVal.value
+      const points = calculatePoints(start, end, maxDistance, divisionStepsInput.value)
+      line.setAttribute("points", points);
+    }
+
+    function calculatePoints(start, end, maxDistance, numberOfSteps) {
+      const slack = maxDistance - getDistance(start, end);
+      const middlePoints = buildMiddlePointsRec(start, end, numberOfSteps);
+      const slackedPoints = applySlackToPoints(middlePoints, slack);
+      return [start, ...slackedPoints, end].map(pointToString).join(" ");
+    }
+
+    function applySlackToPoints(middlePoints, slack) {
+      return middlePoints.map(([x, y], index, array) => {
+        return [x, parseInt(y + slack * calculateSlackMultiplierForIndex(index, array.length))];
+      });
+    }
+
+    const slackDistributionConfig = {
+      1: [0.5],
+      3: [0.3, 0.4, 0.3],
+      7: [0.17, 0.25, 0.3, 0.32, 0.3, 0.25, 0.17],
+    }
+
+    function calculateSlackMultiplierForIndex(index, length) {
+      return slackDistributionConfig[length][index];
+    }
+
+    function buildMiddlePointsRec(start, end, stepsLeft) {
+      if (!stepsLeft) {
+        return [];
+      }
+
+      const middle = findMiddlePoint(start, end);
+
+      return [
+        ...buildMiddlePointsRec(start, middle, stepsLeft - 1),
+        middle,
+        ...buildMiddlePointsRec(middle, end, stepsLeft - 1),
+      ];
+    }
+
+    function getDistance(start, end) {
+      const xDistance = Math.abs(start[0] - end[0]);
+      const yDistance = Math.abs(start[1] - end[1]);
+      return Math.sqrt(xDistance**2 + yDistance**2);
+    }
+
+    function pointToString(point) {
+      return point.join(",");
+    }
+
+    function findMiddlePoint(start, end) {
+      return [
+        parseInt((start[0] + end[0]) / 2),
+        parseInt((start[1] + end[1]) / 2)
+      ];
+    }
+</script>
+</html>
